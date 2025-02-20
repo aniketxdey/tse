@@ -1,0 +1,208 @@
+ml () {  module ml "$@"
+}
+module () {  local _mlredir=1;
+ if [ -n "${MODULES_REDIRECT_OUTPUT+x}" ]; then
+ if [ "$MODULES_REDIRECT_OUTPUT" = '0' ]; then
+ _mlredir=0;
+ else
+ if [ "$MODULES_REDIRECT_OUTPUT" = '1' ]; then
+ _mlredir=1;
+ fi;
+ fi;
+ fi;
+ case " $@ " in 
+ *' --no-redirect '*)
+ _mlredir=0
+ ;;
+ *' --redirect '*)
+ _mlredir=1
+ ;;
+ esac;
+ if [ $_mlredir -eq 0 ]; then
+ _module_raw "$@";
+ else
+ _module_raw "$@" 2>&1;
+ fi
+}
+_module_raw () {  eval "$(/usr/bin/tclsh8.6 '/usr/lib/x86_64-linux-gnu/modulecmd.tcl' bash "$@")";
+ _mlstatus=$?;
+ return $_mlstatus
+}
+#!/bin/bash
+# testing.sh - Test cases for indexer and indextest files.
+# @author: Aniket Dey
+
+chmod +x indexer
+chmod +x indextest
+
+# Clean up any previous files
+rm -f index.dat index2.dat
+
+# Driver function to test indexer with valid crawler directory
+test_valid_indexer() {
+    dir=$1
+    outfile=$2
+    echo "Testing indexer with $dir"
+    ./indexer $dir $outfile
+    if [ -f $outfile ]; then
+        echo "Successfully created $outfile"
+        return 0
+    else
+        echo "Failed to create $outfile"
+        return 1
+    fi
+}
+
+#### 1. Invalid Test Cases
+echo "Invalid test cases for indexer"
+Invalid test cases for indexer
+echo ""
+
+
+# Test 1: Missing all parameters
+echo "Test 1: Missing all parameters"
+Test 1: Missing all parameters
+./indexer
+Usage: ./indexer pageDirectory indexFilename
+echo ""
+
+
+# Test 2: Missing one parameter
+echo "Test 2: Missing one parameter"
+Test 2: Missing one parameter
+./indexer ../data/letters-2
+Usage: ./indexer pageDirectory indexFilename
+echo ""
+
+
+# Test 3: Too many parameters
+echo "Test 3: Too many parameters"
+Test 3: Too many parameters
+./indexer ../data/letters-2 index.dat extra
+Usage: ./indexer pageDirectory indexFilename
+echo ""
+
+
+# Test 4: Invalid pageDirectory (non-existent)
+echo "Test 4: Invalid pageDirectory (non-existent path)"
+Test 4: Invalid pageDirectory (non-existent path)
+./indexer /nonexistent/path index.dat
+Error: invalid page directory '/nonexistent/path'
+echo ""
+
+
+# Test 5: Invalid pageDirectory (not crawler produced)
+echo "Test 5: Invalid pageDirectory (not crawler directory)"
+Test 5: Invalid pageDirectory (not crawler directory)
+mkdir -p ../data/invalid-dir
+./indexer ../data/invalid-dir index.dat
+Error: invalid page directory '../data/invalid-dir'
+rm -rf ../data/invalid-dir
+echo ""
+
+
+# Test 6: Invalid indexFile (non-existent directory)
+echo "Test 6: Invalid indexFile (non-existent directory path)"
+Test 6: Invalid indexFile (non-existent directory path)
+./indexer ../data/letters-2 /nosuchdir/index.dat
+Error: cannot write to '/nosuchdir/index.dat'
+echo ""
+
+
+# Test 7: Invalid indexFile (read-only directory)
+echo "Test 7: Invalid indexFile (read-only directory)"
+Test 7: Invalid indexFile (read-only directory)
+mkdir -p ../data/readonly
+chmod 555 ../data/readonly
+./indexer ../data/letters-2 ../data/readonly/index.dat
+Error: cannot write to '../data/readonly/index.dat'
+rm -rf ../data/readonly
+echo ""
+
+
+#### 2. Valid Test Cases
+echo "Valid test cases"
+Valid test cases
+echo ""
+
+
+# Test 8: Valid indexer test on letters-2
+echo "Test 8: Valid indexer test on letters-2"
+Test 8: Valid indexer test on letters-2
+test_valid_indexer "../data/letters-2" "index.dat"
+Testing indexer with ../data/letters-2
+Successfully created index.dat
+echo ""
+
+
+# Test 9: Valid indextest
+echo "Test 9: Valid indextest"
+Test 9: Valid indextest
+if [ -f index.dat ]; then
+    ./indextest index.dat index2.dat
+    echo ""
+    
+    # Compare files
+    echo "Test 10: Comparing index files"
+    if ~/cs50-dev/shared/tse/indexcmp index.dat index2.dat; then
+        echo "Index files are identical"
+    else
+        echo "Index files differ!"
+    fi
+fi
+
+Test 10: Comparing index files
+Index files are identical
+
+#### 3. Memory Tests
+echo "Memory leak testing"
+Memory leak testing
+echo ""
+
+
+# Test 11: Valgrind on indexer
+echo "Test 11: Testing indexer with valgrind"
+Test 11: Testing indexer with valgrind
+valgrind --leak-check=full --show-leak-kinds=all ./indexer ../data/letters-2 index.dat
+==2505973== Memcheck, a memory error detector
+==2505973== Copyright (C) 2002-2022, and GNU GPL'd, by Julian Seward et al.
+==2505973== Using Valgrind-3.22.0 and LibVEX; rerun with -h for copyright info
+==2505973== Command: ./indexer ../data/letters-2 index.dat
+==2505973== 
+==2505973== 
+==2505973== HEAP SUMMARY:
+==2505973==     in use at exit: 0 bytes in 0 blocks
+==2505973==   total heap usage: 869 allocs, 869 frees, 78,053 bytes allocated
+==2505973== 
+==2505973== All heap blocks were freed -- no leaks are possible
+==2505973== 
+==2505973== For lists of detected and suppressed errors, rerun with: -s
+==2505973== ERROR SUMMARY: 0 errors from 0 contexts (suppressed: 0 from 0)
+echo ""
+
+
+# Test 12: Valgrind on indextest
+echo "Test 12: Testing indextest with valgrind"
+Test 12: Testing indextest with valgrind
+valgrind --leak-check=full --show-leak-kinds=all ./indextest index.dat index2.dat
+==2505984== Memcheck, a memory error detector
+==2505984== Copyright (C) 2002-2022, and GNU GPL'd, by Julian Seward et al.
+==2505984== Using Valgrind-3.22.0 and LibVEX; rerun with -h for copyright info
+==2505984== Command: ./indextest index.dat index2.dat
+==2505984== 
+==2505984== 
+==2505984== HEAP SUMMARY:
+==2505984==     in use at exit: 0 bytes in 0 blocks
+==2505984==   total heap usage: 89 allocs, 89 frees, 18,554 bytes allocated
+==2505984== 
+==2505984== All heap blocks were freed -- no leaks are possible
+==2505984== 
+==2505984== For lists of detected and suppressed errors, rerun with: -s
+==2505984== ERROR SUMMARY: 0 errors from 0 contexts (suppressed: 0 from 0)
+echo ""
+
+
+# Clean up
+rm -f index.dat index2.dat
+echo "All tests completed."
+All tests completed.

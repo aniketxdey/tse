@@ -1,0 +1,13 @@
+# CS50 Fall 2024
+## Aniket Dey (aniketxdey)
+
+This is the README.md for the crawler module, which is Lab 4 and part 1 of the Tiny Search Engine. The crawler crawls webpages and stores content up to a certain max depth
+
+## Assumptions
+None.
+
+## Implementation
+Implemented all functionalities as described.
+
+## Failures
+None, or unknown.

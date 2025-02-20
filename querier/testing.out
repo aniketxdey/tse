@@ -1,0 +1,212 @@
+chmod +x testing.sh
+bash -v testing.sh
+module () {  local _mlredir=1;
+ if [ -n "${MODULES_REDIRECT_OUTPUT+x}" ]; then
+ if [ "$MODULES_REDIRECT_OUTPUT" = '0' ]; then
+ _mlredir=0;
+ else
+ if [ "$MODULES_REDIRECT_OUTPUT" = '1' ]; then
+ _mlredir=1;
+ fi;
+ fi;
+ fi;
+ case " $@ " in 
+ *' --no-redirect '*)
+ _mlredir=0
+ ;;
+ *' --redirect '*)
+ _mlredir=1
+ ;;
+ esac;
+ if [ $_mlredir -eq 0 ]; then
+ _module_raw "$@";
+ else
+ _module_raw "$@" 2>&1;
+ fi
+}
+ml () {  module ml "$@"
+}
+_module_raw () {  eval "$(/usr/bin/tclsh8.6 '/usr/lib/x86_64-linux-gnu/modulecmd.tcl' bash "$@")";
+ _mlstatus=$?;
+ return $_mlstatus
+}
+#!/bin/bash
+# testing.sh - Test cases for the querier program.
+# This script tests the querier by running the crawler and indexer,
+# then querying the index with various test cases, including valid and invalid queries.
+# Author: Aniket Dey
+
+# Ensure that the executables are available and have execute permissions
+chmod +x ../crawler/crawler
+chmod +x ../indexer/indexer
+chmod +x querier
+
+# Clean up any previous test outputs and data directories
+rm -f ../data/letters-1.index
+rm -rf ../data/letters-1
+
+# Directory and file paths
+SEED_URL="http://cs50tse.cs.dartmouth.edu/tse/letters/index.html"
+PAGE_DIR="../data/letters-1"
+INDEX_FILE="../data/letters-1.index"
+MAX_DEPTH=1
+
+#### 1. Run Crawler on /data/letters-1
+echo "===== Running crawler on $SEED_URL with depth $MAX_DEPTH ====="
+===== Running crawler on http://cs50tse.cs.dartmouth.edu/tse/letters/index.html with depth 1 =====
+mkdir -p "$PAGE_DIR"
+../crawler/crawler "$SEED_URL" "$PAGE_DIR" "$MAX_DEPTH"
+0   Fetched: http://cs50tse.cs.dartmouth.edu/tse/letters/index.html
+0  Scanning: http://cs50tse.cs.dartmouth.edu/tse/letters/index.html
+0     Found: http://cs50tse.cs.dartmouth.edu/tse/letters/A.html
+0     Added: http://cs50tse.cs.dartmouth.edu/tse/letters/A.html
+1   Fetched: http://cs50tse.cs.dartmouth.edu/tse/letters/A.html
+1  Scanning: http://cs50tse.cs.dartmouth.edu/tse/letters/A.html
+echo ""
+
+
+#### 2. Run Indexer to Generate letters-1.index
+echo "===== Running indexer on $PAGE_DIR to generate $INDEX_FILE ====="
+===== Running indexer on ../data/letters-1 to generate ../data/letters-1.index =====
+../indexer/indexer "$PAGE_DIR" "$INDEX_FILE"
+echo ""
+
+
+
+#### 3. Test Querier with Relevant Queries
+echo "===== Testing querier with valid queries ====="
+===== Testing querier with valid queries =====
+echo ""
+
+
+# Function to run querier with a given query
+run_querier_test() {
+    test_name="$1"
+    query="$2"
+
+    echo "----- $test_name -----"
+    echo "Query: $query"
+    echo "$query" | ./querier "$PAGE_DIR" "$INDEX_FILE"
+    echo ""
+}
+
+# Run valid query tests
+run_querier_test "Test 1: Query 'playground'" "playground"
+----- Test 1: Query 'playground' -----
+Query: playground
+Query: playground
+score: 1 doc: 1 url: http://cs50tse.cs.dartmouth.edu/tse/letters/index.html
+
+
+run_querier_test "Test 2: Query 'page'" "page"
+----- Test 2: Query 'page' -----
+Query: page
+Query: page
+score: 1 doc: 1 url: http://cs50tse.cs.dartmouth.edu/tse/letters/index.html
+
+
+run_querier_test "Test 3: Query 'home and tse'" "home and tse"
+----- Test 3: Query 'home and tse' -----
+Query: home and tse
+Query: home and tse
+score: 1 doc: 1 url: http://cs50tse.cs.dartmouth.edu/tse/letters/index.html
+
+
+run_querier_test "Test 4: Query 'algorithm or tse'" "algorithm or tse"
+----- Test 4: Query 'algorithm or tse' -----
+Query: algorithm or tse
+Query: algorithm or tse
+score: 1 doc: 2 url: http://cs50tse.cs.dartmouth.edu/tse/letters/A.html
+score: 1 doc: 1 url: http://cs50tse.cs.dartmouth.edu/tse/letters/index.html
+
+
+
+#### 4. Add Invalid Test Cases
+echo "===== Testing querier with invalid queries ====="
+===== Testing querier with invalid queries =====
+echo ""
+
+
+# Run invalid query tests
+run_querier_test "Test 5: Invalid query starting with 'and'" "and playground"
+----- Test 5: Invalid query starting with 'and' -----
+Query: and playground
+Error: 'and' cannot be first
+
+
+run_querier_test "Test 6: Invalid query ending with 'or'" "page or"
+----- Test 6: Invalid query ending with 'or' -----
+Query: page or
+Error: 'or' cannot be last
+
+
+run_querier_test "Test 7: Invalid query with adjacent 'and's" "playground and and page"
+----- Test 7: Invalid query with adjacent 'and's -----
+Query: playground and and page
+Error: 'and' and 'and' cannot be adjacent
+
+
+run_querier_test "Test 8: Invalid query with adjacent 'or's" "algorithm or or tse"
+----- Test 8: Invalid query with adjacent 'or's -----
+Query: algorithm or or tse
+Error: 'or' and 'or' cannot be adjacent
+
+
+run_querier_test "Test 9: Invalid query with non-alphabetic characters" "playground @ page"
+----- Test 9: Invalid query with non-alphabetic characters -----
+Query: playground @ page
+Invalid query syntax: bad character '@' in query.
+
+
+run_querier_test "Test 10: Empty query" ""
+----- Test 10: Empty query -----
+Query: 
+
+
+#### 5. Test for Memory Leaks with Valgrind
+echo "===== Testing querier for memory leaks with Valgrind ====="
+===== Testing querier for memory leaks with Valgrind =====
+echo ""
+
+
+echo "Running Valgrind on 'playground' query"
+Running Valgrind on 'playground' query
+echo "playground" | valgrind --leak-check=full --show-leak-kinds=all ./querier "$PAGE_DIR" "$INDEX_FILE"
+==1747323== Memcheck, a memory error detector
+==1747323== Copyright (C) 2002-2022, and GNU GPL'd, by Julian Seward et al.
+==1747323== Using Valgrind-3.22.0 and LibVEX; rerun with -h for copyright info
+==1747323== Command: ./querier ../data/letters-1 ../data/letters-1.index
+==1747323== 
+Query: playground
+score: 1 doc: 1 url: http://cs50tse.cs.dartmouth.edu/tse/letters/index.html
+==1747323== 
+==1747323== HEAP SUMMARY:
+==1747323==     in use at exit: 48 bytes in 8 blocks
+==1747323==   total heap usage: 298 allocs, 290 frees, 37,774 bytes allocated
+==1747323== 
+==1747323== 48 bytes in 8 blocks are definitely lost in loss record 1 of 1
+==1747323==    at 0x4846828: malloc (in /usr/libexec/valgrind/vgpreload_memcheck-amd64-linux.so)
+==1747323==    by 0x494734E: strdup (strdup.c:42)
+==1747323==    by 0x10B609: indexBuilder (querier.c:393)
+==1747323==    by 0x10C08B: mainLoop (querier.c:611)
+==1747323==    by 0x10C368: main (querier.c:682)
+==1747323== 
+==1747323== LEAK SUMMARY:
+==1747323==    definitely lost: 48 bytes in 8 blocks
+==1747323==    indirectly lost: 0 bytes in 0 blocks
+==1747323==      possibly lost: 0 bytes in 0 blocks
+==1747323==    still reachable: 0 bytes in 0 blocks
+==1747323==         suppressed: 0 bytes in 0 blocks
+==1747323== 
+==1747323== For lists of detected and suppressed errors, rerun with: -s
+==1747323== ERROR SUMMARY: 1 errors from 1 contexts (suppressed: 0 from 0)
+echo ""
+
+
+#### 6. Clean Up
+echo "Cleaning up data directories"
+Cleaning up data directories
+# rm -f ../data/letters-1.index
+# rm -rf ../data/letters-1
+echo "All tests completed."
+All tests completed.

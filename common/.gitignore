@@ -1,0 +1,4 @@
+common.a
+pagedir.o
+word.o
+index.o
